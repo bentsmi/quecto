@@ -123,8 +123,6 @@ bool is_alpha(uint8_t c) {
 TokenArray tokenize(Arenas *arena, const char *buf, size_t size) {
     TokenArray tokens = { 0 };
 
-    int mark = arena_mark(arena->scratch);
-
     size_t start = 0;
     size_t next = 0;
     size_t col = 0;
@@ -190,8 +188,9 @@ TokenArray tokenize(Arenas *arena, const char *buf, size_t size) {
             }
         }
 
-        char *token = arena_alloc(arena->scratch, sizeof(char) * (next - start));
-        strncpy(token, &buf[start], next - start);
+        char token[next - start + 1]; // VLA
+        memcpy(token, &buf[start], next - start);
+        token[next - start] = '\0';
 
         if (next - start > 1) {
             struct keyword *result = lookup_keyword(token, next - start);
@@ -228,8 +227,6 @@ TokenArray tokenize(Arenas *arena, const char *buf, size_t size) {
     Token tok_eof = {0};
     tok_eof.type = TOKEN_EOF;
     arena_array_append(arena->persistent, tokens, tok_eof);
-
-    arena_restore(arena->scratch, mark);
 
     return tokens;
 }

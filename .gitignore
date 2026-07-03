@@ -1,13 +1,24 @@
-main
+
+.vscode/
+compile_commands.json
+.clangd
+.cache/
+.DS_Store
+*.dSYM/
+
 bin/
 build/
-compile_commands.json
-.clangd/
-.vscode/
-out.S
-out.o
-out
-a.out
-.cache/
+
+# Local build outputs
+main
 test
+a.out
+out
+out.o
+out.S
+out_dbg
+*.o
+
+# Generated source
 src/keywords.c
+

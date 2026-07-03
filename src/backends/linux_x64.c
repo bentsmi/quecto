@@ -267,21 +267,16 @@ void emit_x64_prologue(CodegenInterface *iface, Procedure *procedure) {
 
 
 void emit_x64_epilogue(CodegenInterface *iface, Procedure *procedure) {
-    char name_end[256];
-    snprintf(name_end, 256, ".end");
-
-    EMIT(iface->output, X64_LABEL, MLBL(strdup(name_end)), MINV, MINV);
+    EMIT(iface->output, X64_LABEL, MLBL(".end"), MINV, MINV);
 
     for (size_t i = 0; i < procedure->saved_colors.bit_count; i++) {
         if (set_has(&procedure->saved_colors, i))
             EMIT(iface->output, X64_POP, MINV, MREG(registers[3][i]), MINV);
     }
 
-
     if (iface->stackframe > 0) {
         EMIT(iface->output, X64_ADD, MREG(x64_RSP), MIMM(((iface->stackframe / 16 + 1) * 16)), MINV);
     }
-
 
     EMIT(iface->output, X64_POP, MINV, MREG(x64_RBP), MINV);
     EMIT(iface->output, X64_RET, MINV, MINV, MINV);

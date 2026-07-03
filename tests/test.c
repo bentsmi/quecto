@@ -1,9 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "common.h"
 #include "tokenizer.h"
 
-int token_tests() {
+int token_tests(void) {
+
+    Arena persistent;
+    arena_create(&persistent, 16*1024);
+
+    Arenas arenas = (Arenas){
+        .persistent = &persistent,
+        .scratch = NULL,
+    };
+    
     struct {
         const char *input;
         int expected_count;
@@ -31,7 +41,7 @@ int token_tests() {
 
     for (int i = 0; i < num_tok_tests; i++) {
         printf("Running Token Test %d: \"%s\"\n", i + 1, tok_tests[i].input);
-        TokenArray result = tokenize(tok_tests[i].input, strlen(tok_tests[i].input));
+        TokenArray result = tokenize(&arenas, tok_tests[i].input, strlen(tok_tests[i].input));
 
         if (result.count != (size_t)tok_tests[i].expected_count) {
             printf("FAILED: Expected %d tokens, got %zu\n", tok_tests[i].expected_count, result.count);
@@ -40,8 +50,8 @@ int token_tests() {
             for (int j = 0; j < tok_tests[i].expected_count; j++) {
                 if (result.items[j].type != tok_tests[i].expected_types[j]) {
                     printf("FAILED: Token %d mismatch. Expected %s, got %s\n", 
-                           j, token_to_string_table[tok_tests[i].expected_types[j]], 
-                           token_to_string_table[result.items[j].type]);
+                           j, token_info_table[tok_tests[i].expected_types[j]].name, 
+                           token_info_table[result.items[j].type].name);
                     match = 0;
                     break;
                 }
@@ -51,13 +61,13 @@ int token_tests() {
                 tok_tests_passed++;
             }
         }
-        free(result.items);
     }
 
     printf("\nTest Summary: %d/%d tok_tests_passed\n", tok_tests_passed, num_tok_tests);
+    arena_free(&persistent);
     return (tok_tests_passed == num_tok_tests) ? 0 : 1;
 }
 
-int main() {
+int main(void) {
     return token_tests();
 }

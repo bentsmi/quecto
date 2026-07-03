@@ -40,7 +40,7 @@ void report_error(unsigned int line, unsigned int col, const char *fmt, ...) {
     }
     printf("^\n");
 
-    exit(0);
+    exit(1);
 }
 
 // TODO: do this
