@@ -86,6 +86,23 @@ const char *x86_reg_to_str[] = {
     [x64_R14B] = "r14b",
     [x64_R15B] = "r15b",
   
+    [x64_AX] = "ax",
+    [x64_BX] = "bx",
+    [x64_CX] = "cx",
+    [x64_DX] = "dx",
+    [x64_SI] = "si",
+    [x64_DI] = "di",
+    [x64_BP] = "bp",
+    [x64_SP] = "sp",
+    [x64_R8W] = "r8d",
+    [x64_R9W] = "r9d",
+    [x64_R10W] = "r10w",
+    [x64_R11W] = "r11w",
+    [x64_R12W] = "r12w",
+    [x64_R13W] = "r13w",
+    [x64_R14W] = "r14w",
+    [x64_R15W] = "r15w",
+
     [x64_EAX] = "eax",
     [x64_EBX] = "ebx",
     [x64_ECX] = "ecx",
@@ -101,8 +118,8 @@ const char *x86_reg_to_str[] = {
     [x64_R12D] = "r12d",
     [x64_R13D] = "r13d",
     [x64_R14D] = "r14d",
-    [x64_R15D] = "r15d",
-  
+    [x64_R15D] = "r15d",    
+    
     [x64_RAX] = "rax",
     [x64_RBX] = "rbx",
     [x64_RCX] = "rcx",
@@ -123,21 +140,21 @@ const char *x86_reg_to_str[] = {
 
 x64_Register registers[4][16] = {
     [0] = { x64_AL, x64_BL, x64_CL, x64_DL, x64_SIL, x64_DIL, x64_BPL, x64_SPL, x64_R8B, x64_R9B, x64_R10B, x64_R11B, x64_R12B, x64_R13B, x64_R14B, x64_R15B },
-    [1] = { },
+    [1] = { x64_AX, x64_BX, x64_CX, x64_DX, x64_SI, x64_DI, x64_BP, x64_SP, x64_R8W, x64_R9W, x64_R10W, x64_R11W, x64_R12W, x64_R13W, x64_R14W, x64_R15W },
     [2] = { x64_EAX, x64_EBX, x64_ECX, x64_EDX, x64_ESI, x64_EDI, x64_EBP, x64_ESP, x64_R8D, x64_R9D, x64_R10D, x64_R11D, x64_R12D, x64_R13D, x64_R14D, x64_R15D },
     [3] = { x64_RAX, x64_RBX, x64_RCX, x64_RDX, x64_RSI, x64_RDI, x64_RBP, x64_RSP, x64_R8, x64_R9, x64_R10, x64_R11, x64_R12, x64_R13, x64_R14, x64_R15 }
 };
 
 x64_Register arg_registers[4][4] = {
-    [0] = { x64_DIL, x64_SIL, x64_DL, x64_DL },
-    [1] = { },
+    [0] = { x64_DIL, x64_SIL, x64_DL,  x64_CL },
+    [1] = { x64_DI,  x64_SI,  x64_DX,  x64_CX},
     [2] = { x64_EDI, x64_ESI, x64_EDX, x64_ECX },
     [3] = { x64_RDI, x64_RSI, x64_RDX, x64_RCX }
 };
 
 x64_Register ret_registers[4][1] = {
     [0] = { x64_AL },
-    [1] = { },
+    [1] = { x64_AX },
     [2] = { x64_EAX },
     [3] = { x64_RAX },
 };
@@ -239,7 +256,7 @@ void emit_x64_prologue(CodegenInterface *iface, Procedure *procedure) {
 
   EMIT(iface->output, X64_MOV, MREG(x64_RBP), MREG(x64_RSP), MINV);
   
-  for (int i = 0; i < procedure->saved_colors.bit_count; i++) {
+  for (size_t i = 0; i < procedure->saved_colors.bit_count; i++) {
     if (set_has(&procedure->saved_colors, i)) EMIT(iface->output, X64_PUSH, MINV, MREG(registers[3][i]), MINV);
   }
   
@@ -255,7 +272,7 @@ void emit_x64_epilogue(CodegenInterface *iface, Procedure *procedure) {
 
     EMIT(iface->output, X64_LABEL, MLBL(strdup(name_end)), MINV, MINV);
 
-    for (int i = 0; i < procedure->saved_colors.bit_count; i++) {
+    for (size_t i = 0; i < procedure->saved_colors.bit_count; i++) {
         if (set_has(&procedure->saved_colors, i))
             EMIT(iface->output, X64_POP, MINV, MREG(registers[3][i]), MINV);
     }
@@ -474,7 +491,7 @@ X64_INSTRUCTION(ret) {
 
 X64_INSTRUCTION(jmp) {
     char *buf = malloc(16);
-    snprintf(buf, 16, ".L_BLK%d", instr.dest.block);
+    snprintf(buf, 16, ".L_BLK%zu", instr.dest.block);
     EMIT(iface->output, X64_JMP,
         MLBL(buf),
         MINV,
@@ -488,7 +505,7 @@ X64_INSTRUCTION(jmpCC) {
         MREG(select_register(iface->vregs->items[instr.arg1.vreg])),
         MREG(select_register(iface->vregs->items[instr.arg2.vreg])));
     char *buf = malloc(16);
-    snprintf(buf, 16, ".L_BLK%d", instr.dest.block);
+    snprintf(buf, 16, ".L_BLK%zu", instr.dest.block);
     EMIT(iface->output, jmpCC_from_ir[instr.opcode],
         MLBL(buf),
         MINV,
@@ -547,6 +564,7 @@ X64_INSTRUCTION(arg) {
 
 
 void emit_entry(FILE *out, Program *program) {
+    (void)program;
     fprintf(out, "section\t.text\n");
     fprintf(out, ENTRY_SYMBOL ":\n");
     fprintf(out, "\tcall\tmain\n");
@@ -563,7 +581,7 @@ void emit_mangled_symbol(FILE *out, const char *name, size_t len) {
 
 void emit_symbols(FILE *out, Program *program) {
     fprintf(out, "global\t" ENTRY_SYMBOL "\n");
-    for (int i = 0; i < program->symbols->table.capacity; i++) {
+    for (size_t i = 0; i < program->symbols->table.capacity; i++) {
         if (program->symbols->table.keys[i].size != 0) {
             SymbolData *symbol = program->symbols->table.items[i];
             if (symbol->externed) {
@@ -578,8 +596,8 @@ void emit_symbols(FILE *out, Program *program) {
 
 
 void calculate_offsets(CodegenInterface *iface) {
-    iface->stack_from_slot = calloc(iface->slots->count, sizeof(int));
-    for (int i = 0; i < iface->slots->count; i++) {
+    iface->stack_from_slot = calloc(iface->slots->count, sizeof(*iface->stack_from_slot));
+    for (size_t i = 0; i < iface->slots->count; i++) {
         SlotInfo slot = iface->slots->items[i];
         if (!slot.killed && !slot.param) {
             iface->stackframe += slot.size;
