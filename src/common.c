@@ -9,7 +9,7 @@ const char *tabs = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
 uint64_t fnv1a_hash(const void *str, size_t n) {
     uint64_t hash = FNV_BASIS;
 
-    for (int i = 0; i < n; i++) {
+    for (size_t i = 0; i < n; i++) {
         hash ^= ((uint8_t*)str)[i];
         hash *= FNV_PRIME;
     }
@@ -23,7 +23,7 @@ void ht_resize(HashTable *ht) {
     Key *new_keys = (Key *)calloc(new_capacity, sizeof(Key));
     void **new_items = (void **)calloc(new_capacity, sizeof(void *));
 
-    for (int i = 0; i < ht->capacity; i++) {
+    for (size_t i = 0; i < ht->capacity; i++) {
         if (ht->keys[i].data == NULL) continue;
         Key key = ht->keys[i];
         void *item = ht->items[i];
@@ -35,7 +35,7 @@ void ht_resize(HashTable *ht) {
         }
 
         new_keys[index] = key;
-        // new_items[index] = item;
+        new_items[index] = item;
     }
 
     ht->keys = new_keys;
@@ -207,7 +207,7 @@ void set_create(Set *set, Arena *arena, size_t size) { // bit_count is in univer
 void set_intersect(Set *a, Set *b) {
     assert(a->bit_count == b->bit_count);
 
-    for (int i = 0; i < b->word_count; i++) {
+    for (size_t i = 0; i < b->word_count; i++) {
         a->buckets[i] &= b->buckets[i];
     }
 }
@@ -215,7 +215,7 @@ void set_intersect(Set *a, Set *b) {
 void set_add(Set *a, Set *b) {
     assert(a->bit_count == b->bit_count);
 
-    for (int i = 0; i < b->word_count; i++) {
+    for (size_t i = 0; i < b->word_count; i++) {
         a->buckets[i] |= b->buckets[i];
     }
 }
@@ -223,31 +223,40 @@ void set_add(Set *a, Set *b) {
 void set_subtract(Set *a, Set *b) {
     assert(a->bit_count == b->bit_count);
 
-    for (int i = 0; i < b->word_count; i++)
+    for (size_t i = 0; i < b->word_count; i++)
         a->buckets[i] &= ~b->buckets[i];
 }
 
-bool set_insert(Set *set, int val) {
-    return set->buckets[val >> 6] >> (val & 63) & 1 ? false : (set->buckets[val >> 6] |= 1ULL << (val & 63)); 
+bool set_insert(Set *set, size_t val) {
+    assert(val < set->bit_count);
+    uint64_t mask = 1ULL << (val & 63);
+    uint64_t *bucket = &set->buckets[val >> 6];
+    if ((*bucket & mask) != 0) return false;
+    *bucket |= mask;
+    return true;
 }
 
-int set_pop(Set *set) { // pop first
-    for (int i = set->word_count - 1; i >= 0; i--) {
+bool set_pop(Set *set, size_t *out) {
+    for (size_t i = set->word_count; i-- > 0;) {
         if (set->buckets[i]) {
             uint64_t w = set->buckets[i];
-            uint64_t bit = 63 - __builtin_clzll(w);
+            size_t bit = 63 - (size_t)__builtin_clzll(w);
             set->buckets[i] &= ~(1ULL << bit);
-            return i * 64 + bit;
+            *out = i * 64 + bit;
+            assert(*out < set->bit_count);
+            return true;
         }
     }
-    return -1;
+    return false;
 }
 
-bool set_has(Set *set, int val) {
-    return set->buckets[val >> 6] >> (val & 63) & 1;
+bool set_has(Set *set, size_t val) {
+    assert(val < set->bit_count);
+    return (set->buckets[val >> 6] & (1ULL << (val & 63))) != 0;
 }
 
-void set_remove(Set *set, int val) {
+void set_remove(Set *set, size_t val) {
+    assert(val < set->bit_count);
     set->buckets[val >> 6] &= ~(1ULL << (val & 63));
 }
 
@@ -267,14 +276,14 @@ bool set_equals(Set *a, Set *b) {
 }
 
 bool set_empty(Set *set) {
-    for (int i = 0; i < set->word_count; i++) {
+    for (size_t i = 0; i < set->word_count; i++) {
         if (set->buckets[i]) return false;
     }
     return true;
 }
 
 void set_complement(Set *set) {
-    for (int i = 0; i < set->word_count; i++) {
+    for (size_t i = 0; i < set->word_count; i++) {
         set->buckets[i] = ~set->buckets[i];
     }
     if (set->bit_count & 63)

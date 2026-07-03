@@ -76,7 +76,7 @@ static_assert(sizeof(token_info_table) / sizeof(TokenInfo) == TOKEN_COUNT,
 int int_from_str(const char *a, size_t len) {
     int tens = 1;
     int accum = 0;
-    for (int i = len - 1; i >= 0; i--) {
+    for (size_t i = len; i-- > 0;) {
         accum += (a[i] - '0') * tens;
         tens *= 10;
     }
@@ -85,10 +85,10 @@ int int_from_str(const char *a, size_t len) {
 
 float float_from_str(const char *a, size_t len) {
     float accum = 0;
-    int decimal = len/*, exponent = -1*/;
+    size_t decimal = len/*, exponent = -1*/;
     float tens = 1;
 
-    for (int i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         if (a[i] == '.') {
             decimal = i;
         }
@@ -97,13 +97,13 @@ float float_from_str(const char *a, size_t len) {
         }
     }
 
-    for (int i = decimal - 1; i >= 0; i--) {
+    for (size_t i = decimal; i-- > 0;) {
         accum += (a[i] - '0') * tens;
         tens *= 10;
     }
 
     tens = 0.1;
-    for (int i = decimal + 1; i < len; i++) {
+    for (size_t i = decimal + 1; i < len; i++) {
         accum += (a[i] - '0') * tens;
         tens /= 10;
     }

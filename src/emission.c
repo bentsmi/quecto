@@ -27,7 +27,7 @@ const Opcode jump_condition_opcode_table[OP_COUNT] = {
 void emit_program(EmitContext *context, Program *into, AST *base) {
     ASTProgram *program = CAST_AST(base, ASTProgram, AST_PROGRAM);
 
-    for (int i = 0; i < program->decls.count; i++) {
+    for (size_t i = 0; i < program->decls.count; i++) {
         Procedure proc =  { 0 };
         switch (program->decls.items[i]->type) {
             case AST_PROCEDURE: emit_procedure(context, &proc, program->decls.items[i]); break;
@@ -47,11 +47,7 @@ void emit_procedure(EmitContext *context, Procedure *into, AST *base) {
     ASTBlock *body = CAST_AST(procedure->body, ASTBlock, AST_BLOCK);
     ASTIdentifier *name = CAST_AST(procedure->name, ASTIdentifier, AST_IDENTIFIER);
 
-    SymbolData *symbol = get_symbol(context->scope, name->name);
-    ProcSignature *signature = symbol->qtype->signature;
-
     context->procedure = into;
-
     context->procedure->name = name->name;
     context->procedure->vregs = (VregInfoTable) { 0 };
     context->procedure->slots = (SlotTable) { 0 };
@@ -61,7 +57,7 @@ void emit_procedure(EmitContext *context, Procedure *into, AST *base) {
     context->procedure->cfg.entry_block = allocate_block(context);
     start_block(context, context->procedure->cfg.entry_block);
 
-    for (int i = 0; i < procedure->params.count; i++) {
+    for (size_t i = 0; i < procedure->params.count; i++) {
         ASTDecl *decl = CAST_AST(procedure->params.items[i], ASTDecl, AST_DECL);
         ASTIdentifier *ident = CAST_AST(decl->lhs, ASTIdentifier, AST_IDENTIFIER);
         Operand slot = slot_for(context, get_symbol(body->symbols, ident->name), true);
@@ -76,7 +72,7 @@ void emit_procedure(EmitContext *context, Procedure *into, AST *base) {
 void emit_block(EmitContext *context, AST *base) {
     ASTBlock *block = CAST_AST(base, ASTBlock, AST_BLOCK);
     context->scope = block->symbols;
-    for (int i = 0; i < block->stmts.count; i++) {
+    for (size_t i = 0; i < block->stmts.count; i++) {
         emit_statement(context, block->stmts.items[i]);
     }
     context->scope = block->symbols->prev;
@@ -104,7 +100,7 @@ void emit_statement(EmitContext *context, AST *statement) {
 void emit_list(EmitContext *context, AST *base, Operand into) {
     ASTListConstruct *list = CAST_AST(base, ASTListConstruct, AST_LIST);
 
-    for (int i = 0; i < list->items.count; i++) {
+    for (size_t i = 0; i < list->items.count; i++) {
         Operand arg = emit_expr(context, list->items.items[i]);
         
         emit_instr(context, OPCODE_STORE_INDEX,
@@ -270,11 +266,11 @@ Operand emit_call(EmitContext *context, AST *base, bool has_dest) {
     ASTIdentifier *ident = CAST_AST(call->ident, ASTIdentifier, AST_IDENTIFIER);
 
     Operand ops[call->args.count];
-    for (int i = 0; i < call->args.count; i++) {
+    for (size_t i = 0; i < call->args.count; i++) {
         ops[i] = emit_expr(context, call->args.items[i]);
     }
     
-    for (int i = 0; i < call->args.count; i++) {
+    for (size_t i = 0; i < call->args.count; i++) {
         emit_instr(context, OPCODE_ARG, NONE, ops[i], NONE);
     }
     

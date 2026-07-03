@@ -15,8 +15,8 @@
 #include "backends/linux_x64.h"
 
 
-void help_prompt();
-void unrecognized_prompt();
+void help_prompt(void);
+void unrecognized_prompt(void);
 int compile(const char *filename);
 
 int main(int argc, char **argv) { // quecto <command> <input> {flags}
@@ -43,14 +43,14 @@ int main(int argc, char **argv) { // quecto <command> <input> {flags}
     }   
 }
 
-void help_prompt() {
+void help_prompt(void) {
     printf("info: Usage: quecto [command] [options]\n");
     printf("List of Commands:\n");
     printf("\tbuild {file}\t\tBuilds the file.\n");
     printf("\thelp\t\tShows this prompt.\n");
 }
 
-void unrecognized_prompt() {
+void unrecognized_prompt(void) {
     printf("unrecognized command\n");
 }
 

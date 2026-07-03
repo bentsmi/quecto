@@ -30,7 +30,7 @@ SymbolData *lookup_or_error(AnalysisContext *context, AST *base, const char *mes
 void analyze_ast(AnalysisContext *context, AST *base) { // assumes ast is a AST_PROGRAM
     ASTProgram *program = CAST_AST(base, ASTProgram, AST_PROGRAM);
     
-    for (int i = 0; i < program->decls.count; i++) {
+    for (size_t i = 0; i < program->decls.count; i++) {
         switch(program->decls.items[i]->type) {
             case AST_PROCEDURE: analyze_procedure(context, program->decls.items[i], false); break;
             case AST_EXTERN:    analyze_extern(context, program->decls.items[i]); break;
@@ -56,7 +56,7 @@ void analyze_ast(AnalysisContext *context, AST *base) { // assumes ast is a AST_
     }
 
     signature.param_count = procedure->params.count;
-    for (int i = 0; i < procedure->params.count; i++) {
+    for (size_t i = 0; i < procedure->params.count; i++) {
         ASTDecl *decl = CAST_AST(procedure->params.items[i], ASTDecl, AST_DECL);
         ASTIdentifier *ident = CAST_AST(decl->lhs, ASTIdentifier, AST_IDENTIFIER);
         
@@ -68,7 +68,7 @@ void analyze_ast(AnalysisContext *context, AST *base) { // assumes ast is a AST_
     }
 
     signature.return_count = procedure->rets.count;
-    for (int i = 0; i < procedure->rets.count; i++) {
+    for (size_t i = 0; i < procedure->rets.count; i++) {
         ASTDecl *decl = CAST_AST(procedure->rets.items[i], ASTDecl, AST_DECL);
         ASTIdentifier *ident = CAST_AST(decl->lhs, ASTIdentifier, AST_IDENTIFIER);
         
@@ -103,7 +103,7 @@ void analyze_block(AnalysisContext *context, AST *base) {
     block->symbols->prev = context->symbol_table;
     context->symbol_table = block->symbols;
 
-    for (int i = 0; i < block->stmts.count; i++) {
+    for (size_t i = 0; i < block->stmts.count; i++) {
         analyze_statement(context, block->stmts.items[i]);
     }
 
@@ -250,7 +250,7 @@ QuectoType *analyze_call(AnalysisContext *context, AST *base) {
         return NULL;
     }
 
-    for (int i = 0; i < call->args.count; i++) {
+    for (size_t i = 0; i < call->args.count; i++) {
         analyze_expression(context, call->args.items[i], call_signature->param_types[i]);
     }
 
@@ -279,7 +279,7 @@ QuectoType *analyze_ref(AnalysisContext *context, AST *base) {
     // todo: verify that the reference is valid i.e not a constant integer etc
     QuectoType *inner = analyze_expression(context, ref->head, NULL);
     return base->resolved_qtype = pointer_of_type(context, inner);
-};
+}
 
 
 QuectoType *analyze_binary_op(AnalysisContext *context, AST *base, QuectoType *expected) {
@@ -311,7 +311,7 @@ QuectoType *analyze_list(AnalysisContext *context, AST *base, QuectoType *expect
         return NULL;
     }
     
-    for (int i = 0; i < list->items.count; i++) {
+    for (size_t i = 0; i < list->items.count; i++) {
         analyze_expression(context, list->items.items[i], expected->inner);
     }
         
@@ -326,6 +326,8 @@ QuectoType *analyze_symbol(AnalysisContext *context, AST *symbol) {
 
 
 QuectoType *analyze_access(AnalysisContext *context, AST *access) {
+    (void)context; // TODO: add analysis for access on an expression
+    (void)access;
     return NULL;
 }
 

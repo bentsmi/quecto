@@ -18,7 +18,7 @@ typedef enum {
 
 typedef struct {
     TokenArray tokens;
-    int current;
+    size_t current;
     HashTable *type_intern_table;
     Arena *arena;
 } ParserState;

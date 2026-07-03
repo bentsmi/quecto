@@ -28,7 +28,7 @@ void allocate_cfg(Arena *arena, CFGraph *cfg) {
     cfg->defines = arena_alloc(arena, sizeof(Set) * cfg->count);
     cfg->df = arena_alloc(arena, sizeof(Set) * cfg->count);
     
-    for (int i = 0; i < cfg->count; i++) {
+    for (size_t i = 0; i < cfg->count; i++) {
         set_create(&cfg->df[i], arena, cfg->count);
     }
     
@@ -39,11 +39,11 @@ void allocate_cfg(Arena *arena, CFGraph *cfg) {
 
 
 bool dominates(CFGraph *cfg, int a, int b) { // does A dominate B
-    while (b != cfg->entry_block) {
+    while (b != (int)cfg->entry_block) {
         if (a == cfg->idom[b]) return true;
         b = cfg->idom[b];
     }
-    return a == cfg->entry_block;
+    return a == (int)cfg->entry_block;
 }
 
 
@@ -84,10 +84,10 @@ void fill_idom(CFGraph *cfg) {
     bool changed = true;
     while (changed) {
         changed = false;
-        for (int i = 0; i < cfg->count; i++) {
+        for (size_t i = 0; i < cfg->count; i++) {
             int curr = cfg->rpo_list[i];
             int mdom = -1;
-            for (int k = 0; k < cfg->items[curr].predecessors.count; k++) {
+            for (size_t k = 0; k < cfg->items[curr].predecessors.count; k++) {
                 int p = cfg->items[curr].predecessors.items[k];
                 if (cfg->idom[p] == -1) continue;
                 mdom = (mdom == -1) ? p :  intersection(cfg->idom, cfg->rpo, mdom, p);
@@ -105,7 +105,7 @@ void add_predecessor(CFGraph *cfg, int block, int with) {
     if (block == -1) return;
 
     bool add = (with != -1);
-    for (int i = 0; i < cfg->items[block].predecessors.count; i++) {
+    for (size_t i = 0; i < cfg->items[block].predecessors.count; i++) {
         if (cfg->items[block].predecessors.items[i] == with) {
             return;
         }
@@ -123,10 +123,10 @@ void fill_predecessors(CFGraph *cfg) {
 
 
 void fill_df(CFGraph *cfg) {
-    for (int i = 0; i < cfg->count; i++) {
+    for (size_t i = 0; i < cfg->count; i++) {
         if (cfg->items[i].predecessors.count < 2) continue;
         
-        for (int j = 0; j < cfg->items[i].predecessors.count; j++) {
+        for (size_t j = 0; j < cfg->items[i].predecessors.count; j++) {
             int runner = cfg->items[i].predecessors.items[j];
             
             while (runner != cfg->idom[i]) {

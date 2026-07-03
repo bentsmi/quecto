@@ -101,8 +101,8 @@ int ht_nindex(HashTable *ht, const void *key, size_t key_size);
 
 extern const char* tabs;
 
-#define print_indent(extra, fmt, ...) \
-    printf("%.*s" fmt, indent +(extra), tabs, ##__VA_ARGS__);
+#define print_indent(extra, ...) \
+    printf("%.*s" __VA_ARGS__, indent + (extra), tabs);
 
 // currently only a fixed sized arena
 typedef struct {
@@ -150,13 +150,13 @@ typedef struct {
 void set_create(Set *set, Arena *arena, size_t size);
 bool set_equals(Set *a, Set *b);
 void set_intersect(Set *a, Set *b);
-bool set_insert(Set *set, int val);
-void set_remove(Set *set, int val);
-int set_pop(Set *set);
+bool set_insert(Set *set, size_t val);
+void set_remove(Set *set, size_t val);
+bool set_pop(Set *set, size_t *out);
 bool set_empty(Set *set);
 void set_add(Set *a, Set *b); // stores into a
 void set_subtract(Set *a, Set *b);
-bool set_has(Set *set, int val);
+bool set_has(Set *set, size_t val);
 void set_complement(Set *set);
 void set_clear(Set *set);
 void set_copy(Set *dst, Set* src);

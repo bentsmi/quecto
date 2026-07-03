@@ -81,7 +81,7 @@ const OpcodeDesc opcode_description_table[] = {
 
 void print_program(Program program, bool colored) {
     printf("Program:\n");
-    for (int i = 0; i < program.count; i++) {
+    for (size_t i = 0; i < program.count; i++) {
         if (!colored) print_procedure(program.items[i]);
         else print_procedure_colored(&program.items[i]);
     }
@@ -126,12 +126,12 @@ bool print_color_otherwise_operand(Operand operand, VregInfoTable *vregs, bool l
 void print_procedure_colored(Procedure *procedure) {
     printf("%s colored:\n", procedure->name);
 
-    for (int i = 0; i < procedure->cfg.count; i++) {
+    for (size_t i = 0; i < procedure->cfg.count; i++) {
         int b = procedure->cfg.rpo_list[i];
 
         printf("b%d:\n", b);
 
-        for (int j = 0; j < procedure->cfg.items[b].bytecode.count; j++) {
+        for (size_t j = 0; j < procedure->cfg.items[b].bytecode.count; j++) {
             Instr instr = procedure->cfg.items[b].bytecode.items[j];
 
             printf("\t");
@@ -153,7 +153,7 @@ void print_procedure_colored(Procedure *procedure) {
         }
 
         printf("s: ");
-        for (int j = 0; j < 2; j++) {
+        for (size_t j = 0; j < 2; j++) {
             if (procedure->cfg.items[b].successors[j] != -1)
                 printf("b%d ", procedure->cfg.items[b].successors[j]);
         }
@@ -178,16 +178,16 @@ void print_block(CFGraph graph, bool walked[], int block) {
     printf("block #%d:\n", block);
     walked[block] = true;
 
-    for (int i = 0; i < b.phis.count; i ++) {
-        printf("\tr%d = phi(", b.phis.items[i].dest.vreg);
-        for (int j = 0; j < b.predecessors.count; j++) {
-            if (b.phis.items[i].args[j].type == OPERAND_VREG) printf("r%d", b.phis.items[i].args[j].vreg);
+    for (size_t i = 0; i < b.phis.count; i ++) {
+        printf("\tr%zu = phi(", b.phis.items[i].dest.vreg);
+        for (size_t j = 0; j < b.predecessors.count; j++) {
+            if (b.phis.items[i].args[j].type == OPERAND_VREG) printf("r%zu", b.phis.items[i].args[j].vreg);
             if (j != b.predecessors.count - 1) printf(", ");
         }
         printf(")\n");
     }
 
-    for (int i = 0; i < b.bytecode.count; i++) {
+    for (size_t i = 0; i < b.bytecode.count; i++) {
         printf("\t");print_instruction(b.bytecode.items[i]); printf("\n");
     }
 
@@ -211,12 +211,12 @@ void print_mem(MemRef mem) {
 bool print_operand(Operand operand, bool leading) {
     if (operand.type != OPERAND_NONE && leading) printf(", ");
     switch (operand.type) {
-        case OPERAND_BLOCK: printf("b%d", operand.block); break;
-        case OPERAND_VREG: printf("r%d", operand.vreg); break;
+        case OPERAND_BLOCK: printf("b%zu", operand.block); break;
+        case OPERAND_VREG: printf("r%zu", operand.vreg); break;
         case OPERAND_MEM: print_mem(operand.mem); break;
-        case OPERAND_IMM: printf("%d", operand.imm); break;
-        case OPERAND_SLOT: printf("s%d", operand.slot); break;
-        case OPERAND_GLOBAL: printf("GBL%d", operand.glbl); break;
+        case OPERAND_IMM: printf("%zu", operand.imm); break;
+        case OPERAND_SLOT: printf("s%zu", operand.slot); break;
+        case OPERAND_GLOBAL: printf("GBL%zu", operand.glbl); break;
         default: return false;
     }
     return true;
@@ -238,38 +238,21 @@ void print_instruction(Instr instr) {
     }
 }
 
-
-void print_bytecode(Bytecode bytecode, size_t bsize, int blocks[bsize]) {
-    for (int i = 0; i < bytecode.count; i++) {
-        for (int j = 0; j < bsize; j++)
-            if (blocks[j] == i) printf("b%d: ", j);
-        print_instruction(bytecode.items[i]);
-    }
-}
-
-
-// void print_vregs(Procedure procedure) {
-//     for (int v = 0; v < procedure.vregs.count; v++) {
-//         VregInfo entry = procedure.vregs.items[v];
-//         // if (entry.color.index == -1) continue;
-//         printf("{ r%d | color: %d, size: %d, signed: %d }\n", v, entry.color.index, entry.size, entry.sign);
-//     }
-// }
-
-// if arg is -1, matches anything
 inline bool instr_match(Instr *instr, Opcode opcode, OperandType dest, OperandType arg1, OperandType arg2) {
     return (instr->opcode == opcode &&
-                (dest == -1 || instr->dest.type == dest) &&
-                (arg1 == -1 || instr->arg1.type == arg1) &&
-                (arg2 == -1 || instr->arg2.type == arg2));
+                (dest == OPERAND_ANY || instr->dest.type == dest) &&
+                (arg1 == OPERAND_ANY || instr->arg1.type == arg1) &&
+                (arg2 == OPERAND_ANY || instr->arg2.type == arg2));
 }
 
-bool operand_has_vreg(Operand operand, int vreg) {
+bool operand_has_vreg(Operand operand, size_t vreg) {
     return (operand.type == OPERAND_VREG && operand.vreg == vreg) ||
-            (operand.type == OPERAND_MEM && (operand.mem.base == vreg || operand.mem.index == vreg));
+            (operand.type == OPERAND_MEM &&
+             ((operand.mem.base >= 0 && (size_t)operand.mem.base == vreg) ||
+              (operand.mem.index >= 0 && (size_t)operand.mem.index == vreg)));
 }
 
-bool instr_defines_vreg(Instr instr, int vreg) {
+bool instr_defines_vreg(Instr instr, size_t vreg) {
     OpcodeDesc roles = opcode_description_table[instr.opcode];
     
     if (roles.dest == OPDR_DEF && operand_has_vreg(instr.dest, vreg)) return true;
@@ -279,19 +262,19 @@ bool instr_defines_vreg(Instr instr, int vreg) {
     return false;
 }
 
-void operand_replace_vreg(Operand *operand, int find, int replace) {
+void operand_replace_vreg(Operand *operand, size_t find, size_t replace) {
     if (operand->type == OPERAND_VREG && operand->vreg == find) operand->vreg = replace;
-    if (operand->type == OPERAND_MEM && operand->mem.index == find) operand->mem.index = replace;
-    if (operand->type == OPERAND_MEM && operand->mem.base == find) operand->mem.base = replace;
+    if (operand->type == OPERAND_MEM && operand->mem.index >= 0 && (size_t)operand->mem.index == find) operand->mem.index = (int)replace;
+    if (operand->type == OPERAND_MEM && operand->mem.base >= 0 && (size_t)operand->mem.base == find) operand->mem.base = (int)replace;
 }
 
-void instr_replace_vreg(Instr *instr, int find, int replace) {
+void instr_replace_vreg(Instr *instr, size_t find, size_t replace) {
     operand_replace_vreg(&instr->dest, find, replace);
     operand_replace_vreg(&instr->arg1, find, replace);
     operand_replace_vreg(&instr->arg2, find, replace);
 }
 
-bool instr_uses_vreg(Instr instr, int vreg) {
+bool instr_uses_vreg(Instr instr, size_t vreg) {
     OpcodeDesc roles = opcode_description_table[instr.opcode];
     
     if (roles.dest == OPDR_USE && operand_has_vreg(instr.dest, vreg)) return true;
@@ -301,7 +284,7 @@ bool instr_uses_vreg(Instr instr, int vreg) {
     return false;
 }
 
-int operand_collect_vregs(Operand opnd, int *out, int offset) {
+int operand_collect_vregs(Operand opnd, size_t *out, int offset) {
     int size = 0;
     if (opnd.type == OPERAND_VREG) {
         out[offset + size++] = opnd.vreg;
@@ -312,7 +295,7 @@ int operand_collect_vregs(Operand opnd, int *out, int offset) {
     return size;
 }
 
-int instr_collect_used_vregs(Instr instr, int *out) {
+int instr_collect_used_vregs(Instr instr, size_t *out) {
     int size = 0;
     OpcodeDesc roles = opcode_description_table[instr.opcode];
 

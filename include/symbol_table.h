@@ -19,7 +19,7 @@ typedef enum {
 
 typedef struct {
     struct QuectoType *param_types[MAX_PARAMS], *return_types[MAX_PARAMS];
-    int param_count, return_count;
+    size_t param_count, return_count;
 } ProcSignature;
 
 typedef struct QuectoType {

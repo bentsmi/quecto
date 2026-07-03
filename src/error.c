@@ -23,7 +23,6 @@ char *line_start(unsigned int line) {
 void report_error(unsigned int line, unsigned int col, const char *fmt, ...) {
     error = true;
 
-
     printf("error %d:%d: ", line, col);
 
     va_list args;
@@ -36,7 +35,7 @@ void report_error(unsigned int line, unsigned int col, const char *fmt, ...) {
     char *line_src = line_start(line);
     int len = strcspn(line_src, "\n");
     printf(sv_fmt"\n", len, line_src);
-    for (int i = 1; i < col; i++) {
+    for (size_t i = 1; i < col; i++) {
         printf("~");
     }
     printf("^\n");

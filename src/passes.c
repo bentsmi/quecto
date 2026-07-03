@@ -5,11 +5,11 @@
 
 
 void passes_run(Program *program, Passes passes, Arenas arenas) {
-    for (int i = 0; i < program->count; i++) {
+    for (size_t i = 0; i < program->count; i++) {
         Procedure *procedure = &program->items[i];
         passes_preparation(&arenas, procedure);
 
-        for (int j = 0; passes[j] != NULL; j++) {
+        for (size_t j = 0; passes[j] != NULL; j++) {
             passes[j](&arenas, procedure);
         }
     }
@@ -34,7 +34,7 @@ void pass_liveness(Arenas *arenas, Procedure *procedure) {
     CFGraph *cfg = &procedure->cfg;
     VregInfoTable *vregs = &procedure->vregs;
 
-    for (int i = 0; i < cfg->count; i++) {
+    for (size_t i = 0; i < cfg->count; i++) {
         set_create(&cfg->live_in[i], arenas->persistent, vregs->count);
         set_create(&cfg->live_out[i], arenas->persistent, vregs->count);
         set_create(&cfg->uses[i], arenas->persistent, vregs->count);
@@ -44,18 +44,19 @@ void pass_liveness(Arenas *arenas, Procedure *procedure) {
     Set tmp;
     set_create(&tmp, arenas->scratch, vregs->count);
     
-    for (int b = 0; b < cfg->count; b++) {
+    for (size_t b = 0; b < cfg->count; b++) {
         BasicBlock *block = &cfg->items[b];
         Instr instr;
 
-        for (int i = 0; i < block->bytecode.count; i++) {
+        for (size_t i = 0; i < block->bytecode.count; i++) {
             instr = block->bytecode.items[i];
             if (instr.dest.type == OPERAND_VREG) {
                 set_insert(&cfg->defines[b], instr.dest.vreg);
             }
-            int used[16];
-            int count = instr_collect_used_vregs(instr, used);
-            for (int v = 0; v < count; v++) {
+
+            size_t used[16];
+            size_t count = instr_collect_used_vregs(instr, used);
+            for (size_t v = 0; v < count; v++) {
                 if (!set_has(&cfg->defines[b], used[v])) {
                     set_insert(&cfg->uses[b], used[v]);
                 }
@@ -66,9 +67,10 @@ void pass_liveness(Arenas *arenas, Procedure *procedure) {
     bool changed = true;
     while (changed) {
         changed = false;
-        for (int k = 0; k < cfg->count; k++) {
+        for (size_t k = 0; k < cfg->count; k++) {
             int b = cfg->rpo_list[k];
             BasicBlock *block = &cfg->items[b];
+
 
             for (int s = 0; s < 2; s++) {
                 int succ = block->successors[s];
@@ -78,10 +80,11 @@ void pass_liveness(Arenas *arenas, Procedure *procedure) {
                 
                 BasicBlock *successor = &cfg->items[succ];
                 int idx = -1;
-                for (int i = 0; i < successor->predecessors.count; i++) {
-                    if (b == successor->predecessors.items[i]) idx = i;
+                for (size_t i = 0; i < successor->predecessors.count; i++) {
+                    if (b == successor->predecessors.items[i])
+                        idx = i;
                 }
-                for (int p = 0; p < successor->phis.count; p++) {
+                for (size_t p = 0; p < successor->phis.count; p++) {
                     Phi phi = successor->phis.items[p];
                     if (phi.args[idx].type == OPERAND_VREG)
                         set_insert(&tmp, phi.args[idx].vreg);
@@ -119,15 +122,15 @@ void pass_insert_phis(Arenas *arenas, Procedure *procedure) {
     set_create(&phi_blocks, arenas->scratch, cfg->count);
     set_create(&working, arenas->scratch, cfg->count);
     
-    for (int slot = 0; slot < slots->count; slot++) {
+    for (size_t slot = 0; slot < slots->count; slot++) {
         if (slots->items[slot].address_taken) continue;
 
         set_clear(&stored_at_blocks);
         set_clear(&phi_blocks);
         set_clear(&working);
 
-        for (int block = 0; block < cfg->count; block++) {
-            for (int j = 0; j < cfg->items[block].bytecode.count; j++) {
+        for (size_t block = 0; block < cfg->count; block++) {
+            for (size_t j = 0; j < cfg->items[block].bytecode.count; j++) {
                 Instr instr = cfg->items[block].bytecode.items[j];
                 if (instr.opcode == OPCODE_STORE && instr.dest.type == OPERAND_SLOT && instr.dest.slot == slot) {
                     set_insert(&stored_at_blocks, block);
@@ -137,10 +140,11 @@ void pass_insert_phis(Arenas *arenas, Procedure *procedure) {
         }
 
         set_add(&working, &stored_at_blocks);
-         while (!set_empty(&working)) {
-            int val = set_pop(&working);
-
-            for (int j = 0; j < cfg->count; j++) {
+        while (!set_empty(&working)) {
+            size_t val;
+            bool popped = set_pop(&working, &val);
+            assert(popped);
+            for (size_t j = 0; j < cfg->count; j++) {
                 if (!set_has(&cfg->df[val], j)) continue; // add live in pruning, needs more computation
 
                 if (!set_has(&phi_blocks, j)) {
@@ -151,8 +155,9 @@ void pass_insert_phis(Arenas *arenas, Procedure *procedure) {
         }
 
         while (!set_empty(&phi_blocks)) {
-            int block = set_pop(&phi_blocks);
-
+            size_t block;
+            bool popped = set_pop(&phi_blocks, &block);
+            assert(popped);
             Phi phi = { 0 };
             phi.slot = slot;
             phi.args = arena_alloc(arenas->persistent, sizeof(Operand) * cfg->items[block].predecessors.count);
@@ -164,14 +169,16 @@ void pass_insert_phis(Arenas *arenas, Procedure *procedure) {
 
 
 void pass_kill_slots(Arenas *arenas, Procedure *procedure) {
+    (void)arenas; // doesn't allocate, but needs to match pass signature
+    
     CFGraph *cfg = &procedure->cfg;
-    for (int s = 0; s < procedure->slots.count; s++) {
+    for (size_t s = 0; s < procedure->slots.count; s++) {
         procedure->slots.items[s].killed = true;
     }
-    for (int k = 0; k < cfg->count; k++) {
+    for (size_t k = 0; k < cfg->count; k++) {
         int b = cfg->rpo_list[k];
 
-        for (int i = 0; i < cfg->items[b].bytecode.count; i++) {
+        for (size_t i = 0; i < cfg->items[b].bytecode.count; i++) {
             Instr instr = cfg->items[b].bytecode.items[i];
 
             if (instr.dest.type == OPERAND_SLOT) {
@@ -189,23 +196,23 @@ void pass_kill_slots(Arenas *arenas, Procedure *procedure) {
 }
 
 typedef DEFINE_STACK(Operand) OperandStack;
-DEFINE_STACK_DEF(OperandStack, Operand);
+DEFINE_STACK_DEF(OperandStack, Operand)
 
-void pass_rename_recurs(Arenas *arenas, Procedure *procedure, OperandStack stacks[], int bid) {
+void pass_rename_recurs(Arenas *arenas, Procedure *procedure, OperandStack stacks[], size_t bid) {
     CFGraph *cfg = &procedure->cfg;
     SlotTable *slots = &procedure->slots;
     BasicBlock *block = &cfg->items[bid];
 
-    int *pushed = arena_alloc(arenas->scratch, sizeof(int) * slots->count); // taken care of by interface to this
+    size_t *push_count = arena_alloc(arenas->scratch, sizeof(size_t) * slots->count); // taken care of by interface to this
 
-    for (int i = 0; i < block->phis.count; i++) {
+    for (size_t i = 0; i < block->phis.count; i++) {
         Phi *phi = &block->phis.items[i];
         phi->dest = allocate_vreg_explicit(arenas->persistent, procedure, vregi_from_sloti(slots->items[phi->slot]));
         OperandStack_push(&stacks[phi->slot], phi->dest);
-        pushed[phi->slot]++;
+        push_count[phi->slot]++;
     }
 
-    for (int i = 0; i < block->bytecode.count; i++) {
+    for (size_t i = 0; i < block->bytecode.count; i++) {
         Instr *instr = &block->bytecode.items[i];
        
         if (instr_match(instr, OPCODE_LOAD, -1, OPERAND_SLOT, OPERAND_NONE) && !slots->items[instr->arg1.slot].address_taken) {
@@ -219,38 +226,38 @@ void pass_rename_recurs(Arenas *arenas, Procedure *procedure, OperandStack stack
 
         if (instr_match(instr, OPCODE_STORE, OPERAND_SLOT, -1, -1) && !slots->items[instr->dest.slot].address_taken) {
             OperandStack_push(&stacks[instr->dest.slot], instr->arg1);
-            pushed[instr->dest.slot]++;
+            push_count[instr->dest.slot]++;
             *instr = (Instr) { 0 };
         }
     }
 
-    for (int i = 0; i < 2; i++) {
+    for (size_t i = 0; i < 2; i++) {
         int s = block->successors[i];
         if (s == -1) continue;
 
         BasicBlock *succ = &cfg->items[s];
 
         int idx = -1;
-        for (int j = 0; j < succ->predecessors.count; j++) {
-            if (succ->predecessors.items[j] == bid) {
+        for (size_t j = 0; j < succ->predecessors.count; j++) {
+            if (succ->predecessors.items[j] == (int)bid) {
                 idx = j;
                 break;
             }
         }
 
-        for (int j = 0; j < succ->phis.count; j++) {
+        for (size_t j = 0; j < succ->phis.count; j++) {
             Phi *p = &succ->phis.items[j];
             p->args[idx] = OperandStack_peek(&stacks[p->slot], 1);
         }
     }
 
-    for (int i = 0; i < cfg->count; i++) {
-        if (cfg->idom[i] == bid && i != bid)
+    for (size_t i = 0; i < cfg->count; i++) {
+        if (cfg->idom[i] == (int)bid && i != bid)
             pass_rename_recurs(arenas, procedure, stacks, i);
     }
 
-    for (int i = 0; i < slots->count; i++) {
-        for (int j = 0; j < pushed[i]; j++)
+    for (size_t i = 0; i < slots->count; i++) {
+        for (size_t j = 0; j < push_count[i]; j++)
             OperandStack_pop(&stacks[i]);
     }
 }
@@ -262,7 +269,7 @@ void pass_rename(Arenas *arenas, Procedure *procedure) {
     size_t mark = arena_mark(arenas->scratch);
     OperandStack *stacks = arena_alloc(arenas->scratch, sizeof(OperandStack) * slots->count);
 
-    for (int i = 0; i < slots->count; i++) {
+    for (size_t i = 0; i < slots->count; i++) {
         OperandStack_set_backing(&stacks[i], arenas->scratch);
         if (slots->items[i].param && !slots->items[i].address_taken) {
             OperandStack_push(&stacks[i], allocate_vreg_explicit(arenas->persistent, procedure, vregi_from_sloti(slots->items[i])));
@@ -275,13 +282,15 @@ void pass_rename(Arenas *arenas, Procedure *procedure) {
 
 
 void pass_remove_copies(Arenas *arenas, Procedure *procedure) {
+    (void)arenas; // doesn't allocate but needs to match signature
+    
     CFGraph *cfg = &procedure->cfg;
-    for (int i = 0; i < cfg->count; i++) {
-        for (int j = 0; j < cfg->items[i].bytecode.count; j++) {
+    for (size_t i = 0; i < cfg->count; i++) {
+        for (size_t j = 0; j < cfg->items[i].bytecode.count; j++) {
             Instr *instr = &cfg->items[i].bytecode.items[j];
 
             if (instr->opcode == OPCODE_COPY && instr->dest.type == OPERAND_VREG && instr->arg1.type == OPERAND_VREG) {
-                for (int k = j + 1; k < cfg->items[i].bytecode.count; k++) {
+                for (size_t k = j + 1; k < cfg->items[i].bytecode.count; k++) {
                     Instr *marked = &cfg->items[i].bytecode.items[k];
                     instr_replace_vreg(marked, instr->dest.vreg, instr->arg1.vreg);
                 }
@@ -293,24 +302,26 @@ void pass_remove_copies(Arenas *arenas, Procedure *procedure) {
 
 
 void pass_compute_liveness(Arenas *arenas, Procedure *procedure) {
+    (void)arenas;
+    
     CFGraph *cfg = &procedure->cfg;
     VregInfoTable *vregs = &procedure->vregs;
 
-    for (int i = 0; i < vregs->count; i++) {
+    for (size_t i = 0; i < vregs->count; i++) {
         int bend = -1;
         
-        for (int j = cfg->count - 1; j >= 0; j--) {
+        for (size_t j = cfg->count; j-- > 0;) {
             int b = cfg->rpo_list[j];
             bool alive = set_has(&cfg->live_in[b], i) || set_has(&cfg->defines[b], i);
             
             if (!alive) continue;
             
             if (!set_has(&cfg->live_out[b], i)) { // dies in this block
-                int iend = 0;  
-                for (int k = cfg->items[b].bytecode.count - 1; k >= 0; k--) {
+                int iend = 0;
+                for (size_t k = cfg->items[b].bytecode.count; k-- > 0;) {
                     Instr instr = cfg->items[b].bytecode.items[k];
                     if (instr_uses_vreg(instr, i)) {
-                        iend = k;
+                        iend = (int)k;
                         break;
                     }
                 }
@@ -323,10 +334,10 @@ void pass_compute_liveness(Arenas *arenas, Procedure *procedure) {
             
             if (set_has(&cfg->defines[b], i)) {
                 int istart = 0;
-                for (int k = cfg->items[b].bytecode.count - 1; k >= 0; k--) {
+                for (size_t k = cfg->items[b].bytecode.count; k-- > 0;) {
                     Instr instr = cfg->items[b].bytecode.items[k];
                     if (instr_defines_vreg(instr, i)) {
-                        istart = k;
+                        istart = (int)k;
                         break;
                     }
                 }
@@ -339,8 +350,8 @@ void pass_compute_liveness(Arenas *arenas, Procedure *procedure) {
         vregs->items[i].interval.bend = bend;
     }
 
-    for (int b = 0; b < cfg->count; b++) {
-        for (int s = 0; s < 2; s++) { // find backedges
+    for (size_t b = 0; b < cfg->count; b++) {
+        for (size_t s = 0; s < 2; s++) { // find backedges
             int succ = cfg->items[b].successors[s];
             
             if (succ == -1) continue;
@@ -349,7 +360,7 @@ void pass_compute_liveness(Arenas *arenas, Procedure *procedure) {
             int exit = exit_for(cfg, succ);
             if (exit == -1) continue;
 
-            for (int v = 0; v < vregs->count; v++) {
+            for (size_t v = 0; v < vregs->count; v++) {
                 if (!set_has(&cfg->live_out[b], v) || !set_has(&cfg->live_in[succ], v)) continue;
                 
                 int bend = vregs->items[v].interval.bend;
@@ -369,19 +380,19 @@ void pass_crosses_call(Arenas *arenas, Procedure *procedure) {
     Set live;
     set_create(&live, arenas->scratch, procedure->vregs.count);
     
-    for (int v = 0; v < procedure->vregs.count; v++) {
+    for (size_t v = 0; v < procedure->vregs.count; v++) {
         procedure->vregs.items[v].crosses_call = false;
     }
     
-    for (int k = 0; k < cfg->count; k++) {
+    for (size_t k = 0; k < cfg->count; k++) {
         int b = cfg->rpo_list[k];
 
         set_copy(&live, &cfg->live_out[b]);
 
-        for (int i = cfg->items[b].bytecode.count - 1; i >= 0; i--) {
+        for (size_t i = cfg->items[b].bytecode.count; i-- > 0;) {
             Instr instr = cfg->items[b].bytecode.items[i];
             if (instr.opcode == OPCODE_CALL) {
-                for (int v = 0; v < procedure->vregs.count; v++) {
+                for (size_t v = 0; v < procedure->vregs.count; v++) {
                     if (set_has(&live, v) && !(instr.dest.type == OPERAND_VREG && instr.dest.vreg == v)) {
                         procedure->vregs.items[v].crosses_call = true;
                         procedure->vregs.items[v].hint |= PR_CALLEE_SAVED;
@@ -394,9 +405,9 @@ void pass_crosses_call(Arenas *arenas, Procedure *procedure) {
                 set_remove(&live, instr.dest.vreg);
             }
 
-            int in_use[16];
-            int count = instr_collect_used_vregs(instr, in_use);
-            for (int i = 0; i < count; i++) {
+            size_t in_use[16];
+            size_t count = instr_collect_used_vregs(instr, in_use);
+            for (size_t i = 0; i < count; i++) {
                 set_insert(&live, in_use[i]);   
             }
         }
@@ -428,7 +439,7 @@ void color_pool_init(ColorPool *pool, Arena *arena, Color *backing, size_t count
     set_create(&pool->args, arena, count);
     set_create(&pool->rets, arena, count);
 
-    for (int i = 0; i < count; i++) {
+    for (size_t i = 0; i < count; i++) {
         pool->position_from_index[backing[i].index] = i;
         if ((backing[i].flags & PR_GENERAL_PURPOSE) == PR_GENERAL_PURPOSE) set_insert(&pool->general_purpose, i);
         if ((backing[i].flags & PR_CALLEE_SAVED) == PR_CALLEE_SAVED) set_insert(&pool->callee_saved, i);
@@ -473,7 +484,9 @@ Color color_pool_pop(ColorPool *pool, PhysRegFlags filter) {
             continue;
         }
 
-        int position = set_pop(&pool->intersection);
+        size_t position;
+        bool popped = set_pop(&pool->intersection, &position);
+        assert(popped);
         set_remove(&pool->enabled, position);
         return pool->backing[position];
     }
@@ -487,14 +500,16 @@ bool color_pool_empty(ColorPool *pool) {
 }
 
 
-void pass_precoloring(Arenas *_, Procedure *procedure) {
+void pass_precoloring(Arenas *arenas, Procedure *procedure) {
+    (void)arenas;
+    
     CFGraph *cfg = &procedure->cfg;
     VregInfoTable *vregs = &procedure->vregs;
 
-    for (int k = 0; k < cfg->count; k++) {
+    for (size_t k = 0; k < cfg->count; k++) {
         int b = cfg->rpo_list[k];
 
-        for (int i = 0; i < cfg->items[b].bytecode.count; i++) {
+        for (size_t i = 0; i < cfg->items[b].bytecode.count; i++) {
             Instr instr = cfg->items[b].bytecode.items[i];
 
             if (instr.opcode == OPCODE_RET && instr.arg1.type == OPERAND_VREG) {
@@ -517,7 +532,7 @@ void pass_precoloring(Arenas *_, Procedure *procedure) {
 }
 
 
-void pass_color_cfg_recurs(Arenas *arenas, Procedure *procedure, int block, Set *live, ColorPool *pool) {
+void pass_color_cfg_recurs(Arenas *arenas, Procedure *procedure, size_t block, Set *live, ColorPool *pool) {
     CFGraph *cfg = &procedure->cfg;
     VregInfoTable *vregs = &procedure->vregs;
     BasicBlock *blk = &cfg->items[block];
@@ -529,7 +544,7 @@ void pass_color_cfg_recurs(Arenas *arenas, Procedure *procedure, int block, Set 
     set_create(&tmp, arenas->scratch, vregs->count);
     set_copy(&tmp, live);
 
-    for (int p = 0; p < blk->phis.count; p++) {
+    for (size_t p = 0; p < blk->phis.count; p++) {
         Phi phi = blk->phis.items[p];
         set_insert(live, phi.dest.vreg);
 
@@ -542,19 +557,19 @@ void pass_color_cfg_recurs(Arenas *arenas, Procedure *procedure, int block, Set 
         else assert(0 && "no spills yet...");
     }
 
-    for (int i = 0; i < blk->bytecode.count; i++) {
+    for (size_t i = 0; i < blk->bytecode.count; i++) {
         Instr instr = blk->bytecode.items[i];
         
         bool non_comm = (instr.opcode == OPCODE_SUB || instr.opcode == OPCODE_DIV);
-        int protected = (non_comm && instr.arg2.type == OPERAND_VREG) ? instr.arg2.vreg : -1;
+        int protected = (non_comm && instr.arg2.type == OPERAND_VREG) ? (int)instr.arg2.vreg : -1;
 
-        for (int v = 0; v < vregs->count; v++) {
-            if (v == protected) continue;
+        for (size_t v = 0; v < vregs->count; v++) {
+            if (protected >= 0 && v == (size_t)protected) continue;
             
             if (set_has(live, v)
                 && !set_has(&cfg->live_out[block], v)
-                && vregs->items[v].interval.iend <= i
-                && vregs->items[v].interval.bend == block
+                && vregs->items[v].interval.iend <= (int)i
+                && vregs->items[v].interval.bend == (int)block
             ) {
                 set_remove(live, v);
                 color_pool_push(pool, vregs->items[v].color);
@@ -581,16 +596,16 @@ void pass_color_cfg_recurs(Arenas *arenas, Procedure *procedure, int block, Set 
 
         if (protected != -1 && set_has(live, protected)
                 && !set_has(&cfg->live_out[block], protected)
-                && vregs->items[protected].interval.iend <= i
-                && vregs->items[protected].interval.bend == block
+                && vregs->items[protected].interval.iend <= (int)i
+                && vregs->items[protected].interval.bend == (int)block
         ) {
             set_remove(live, protected);
             color_pool_push(pool, vregs->items[protected].color);
         }
     }
 
-    for (int b = 0; b < cfg->count; b++) {
-        if (cfg->idom[b] == block && b != block) pass_color_cfg_recurs(arenas, procedure, b, live, pool);
+    for (size_t b = 0; b < cfg->count; b++) {
+        if (cfg->idom[b] == (int)block && b != block) pass_color_cfg_recurs(arenas, procedure, b, live, pool);
     }
 
     set_copy(live, &tmp);
@@ -637,10 +652,10 @@ void pass_color_cfg(Arenas *arenas, Procedure *procedure) {
 
 void pass_phis_into_copies(Arenas *arenas, Procedure *procedure) {
     CFGraph *cfg = &procedure->cfg;
-    for (int b = 0; b < cfg->count; b++) {
-        for (int p = 0; p < cfg->items[b].phis.count; p++) { // arg should be same as pred
+    for (size_t b = 0; b < cfg->count; b++) {
+        for (size_t p = 0; p < cfg->items[b].phis.count; p++) { // arg should be same as pred
             Phi phi = cfg->items[b].phis.items[p];
-            for (int a = 0; a < cfg->items[b].predecessors.count; a++) {
+            for (size_t a = 0; a < cfg->items[b].predecessors.count; a++) {
                 Instr instr = { 0 };
                 instr.opcode = OPCODE_COPY;
                 instr.dest = phi.dest;
@@ -654,12 +669,12 @@ void pass_phis_into_copies(Arenas *arenas, Procedure *procedure) {
 
 void pass_sweep_nops(Arenas *arenas, Procedure *procedure) {
     CFGraph *cfg = &procedure->cfg;
-    for (int b = 0; b < cfg->count; b++) {
+    for (size_t b = 0; b < cfg->count; b++) {
         Bytecode new;
         new.items = arena_alloc(arenas->persistent, sizeof(Instr) * cfg->items[b].bytecode.count);
         new.capacity = cfg->items[b].bytecode.count;
         new.count = 0;
-        for (int i = 0; i < cfg->items[b].bytecode.count; i++) {
+        for (size_t i = 0; i < cfg->items[b].bytecode.count; i++) {
             if (cfg->items[b].bytecode.items[i].opcode != OPCODE_NONE) {
                 new.items[new.count++] = cfg->items[b].bytecode.items[i];
             }
@@ -669,11 +684,13 @@ void pass_sweep_nops(Arenas *arenas, Procedure *procedure) {
 }
 
 
-void debug_pass_print(Arenas *_, Procedure *procedure) {
+void debug_pass_print(Arenas *arenas, Procedure *procedure) {
+    (void)arenas;
     print_procedure(*procedure);
 }
 
 
-void debug_pass_print_colored(Arenas *_, Procedure *procedure) {
+void debug_pass_print_colored(Arenas *arenas, Procedure *procedure) {
+    (void)arenas;
     print_procedure_colored(procedure);
 }

@@ -40,7 +40,7 @@ void *get_symbol(SymbolTable *symbol_table, const char *str) {
 bool quecto_types_equal(QuectoType *a, QuectoType *b) {
     if (a == b) return true; // for interned values
     
-    if (a && b && a->type == b->type || a && b && quecto_is_integer(a) && b->type == QUECTO_COMP_INT) {
+    if ((a && b) && ((a->type == b->type) || (quecto_is_integer(a) && b->type == QUECTO_COMP_INT))) {
         if (a->inner != NULL && b->inner != NULL) {
             return quecto_types_equal(a->inner, b->inner);
         }
@@ -127,7 +127,7 @@ bool quecto_is_signed(QuectoType *a) {
 
 
 void print_symbol_table(SymbolTable *symbol_table, int indent) {
-    for (int i = 0; i < symbol_table->table.capacity; i++) {
+    for (size_t i = 0; i < symbol_table->table.capacity; i++) {
         if (symbol_table->table.keys[i].data == NULL) continue;
 
         SymbolData *data = (SymbolData*) symbol_table->table.items[i];
@@ -144,12 +144,12 @@ void print_symbol_table(SymbolTable *symbol_table, int indent) {
 
 void print_function_signature(ProcSignature *signature) {
     printf("(");
-    for (int i = 0; i < signature->param_count; i++) {
+    for (size_t i = 0; i < signature->param_count; i++) {
         print_type(signature->param_types[i]);
         if (i == signature->param_count) printf(", ");
     }
     printf(") -> (");
-    for (int i = 0; i < signature->return_count; i++) {
+    for (size_t i = 0; i < signature->return_count; i++) {
         print_type(signature->return_types[i]);
         if (i == signature->return_count) printf(", ");
     }

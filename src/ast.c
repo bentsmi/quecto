@@ -147,7 +147,7 @@ String astlist_str(Arena *arena, ASTList list, const char *delim, int indent) {
 
     String *parts = arena_alloc(arena, list.count * sizeof *parts);
     int total = 0;
-    for (int i = 0; i < list.count; i++) {
+    for (size_t i = 0; i < list.count; i++) {
         parts[i] = ast_str_helper(arena, list.items[i], indent);
         total += parts[i].len;
     }
@@ -155,7 +155,7 @@ String astlist_str(Arena *arena, ASTList list, const char *delim, int indent) {
     total += dlen * (list.count - 1);
     char *buf = arena_alloc(arena, total + 1);
     int offset = 0;
-    for (int i = 0; i < list.count; i++) {
+    for (size_t i = 0; i < list.count; i++) {
         if (i > 0) {
             memcpy(buf + offset, delim, dlen);
             offset += dlen;

@@ -8,7 +8,7 @@
 #include "error.h"
 
 
-TokenType peek_token_type(ParserState *parser, int dist) {
+TokenType peek_token_type(ParserState *parser, size_t dist) { // we never peek backwards
     return (parser->current + dist < parser->tokens.count) ? parser->tokens.items[parser->current + dist].type :
                  parser->tokens.items[parser->tokens.count - 1].type;
 }
@@ -41,15 +41,15 @@ AST *parse_program(ParserState *parser) {
     program->base.type = AST_PROGRAM;
 
     while (peek_token_type(parser, 0) != TOKEN_EOF) {
-        AST *statement;
+        AST *statement = NULL;
         switch(peek_token_type(parser, 0)) {
             case TOKEN_EXTERN: statement = parse_extern(parser); break;
             case TOKEN_PROC:   statement = parse_procedure(parser); break;
             default: {
                 Token tok = consume_token(parser);
                 report_error(tok.line, tok.col, "Expected top-level declaration got %s", token_info_table[tok.type].name);
+                return NULL;
             }
-                
         }
         arena_array_append(parser->arena, program->decls, statement);
     }

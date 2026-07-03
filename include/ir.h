@@ -63,6 +63,7 @@ typedef struct {
 
 
 typedef enum {
+    OPERAND_ANY = -1,
     OPERAND_NONE = 0,
     OPERAND_VREG,
     OPERAND_IMM,
@@ -91,11 +92,11 @@ extern const OpcodeDesc opcode_description_table[];
 typedef struct {
     OperandType type;
     union {
-        int vreg;
-        int slot;
-        int block;
-        int imm;
-        int glbl;
+        size_t vreg;
+        size_t slot;
+        size_t block;
+        size_t imm;
+        size_t glbl;
     		MemRef mem;
     };
 } Operand;
@@ -178,8 +179,8 @@ typedef struct {
 } Phi;
 
 typedef struct {
-    DYN_ARR(Phi) phis;
-    DYN_ARR(int) predecessors;
+    DYN_ARR(Phi) phis; // TODO: have DYN_ARR's declared globally so each implementation
+    DYN_ARR(int) predecessors; // is not its own type.
     Bytecode bytecode;
     int successors[2];
 } BasicBlock;
@@ -187,7 +188,7 @@ typedef struct {
 
 typedef struct {
     BasicBlock *items;
-    int *rpo, *rpo_list, *idom; // indexed by item id
+    int *idom, *rpo, *rpo_list; // indexed by item id; int because -1 is the unvisited sentinel
     Set *df, *live_in, *live_out, *uses, *defines; // live_in -> defines are vreg liveness related
     size_t count, capacity, entry_block;
 } CFGraph;
@@ -217,15 +218,14 @@ extern const Opcode opposite_opcode_table[OPCODE_COUNT];
 Operand allocate_vreg_explicit(Arena *arena, Procedure *procedure, VregInfo info);
 VregInfo vregi_from_sloti(SlotInfo slot);
 
-bool operand_has_vreg(Operand operand, int vreg);
-int operand_collect_vregs(Operand opnd, int *out, int offset);
+bool operand_has_vreg(Operand operand, size_t vreg);
+int operand_collect_vregs(Operand opnd, size_t *out, int offset);
 
 bool instr_match(Instr *instr, Opcode opcode, OperandType dest, OperandType arg1, OperandType arg2); // if arg is -1, matches anything
-int instr_collect_used_vregs(Instr instr, int *out);
-bool instr_uses_vreg(Instr instr, int vreg);
-bool instr_defines_vreg(Instr instr, int vreg);
-void instr_replace_vreg(Instr *instr, int find, int replace);
-
+int instr_collect_used_vregs(Instr instr, size_t *out);
+bool instr_uses_vreg(Instr instr, size_t vreg);
+bool instr_defines_vreg(Instr instr, size_t vreg);
+void instr_replace_vreg(Instr *instr, size_t find, size_t replace);
 
 void print_procedure(Procedure proc);
 void print_procedure_colored(Procedure *proc);

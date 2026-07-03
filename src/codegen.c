@@ -22,7 +22,7 @@ MachineCode emit_procedure_with(CodegenBackend *backend, Arena *scratch, Procedu
     backend->calculate_offsets(&iface);
     backend->emit_prologue(&iface, &procedure);
 
-    for (int i = 0; i < procedure.cfg.count; i++) {
+    for (size_t i = 0; i < procedure.cfg.count; i++) {
         int b = procedure.cfg.rpo_list[i];
         BasicBlock *block = &procedure.cfg.items[b];
         
@@ -31,7 +31,7 @@ MachineCode emit_procedure_with(CodegenBackend *backend, Arena *scratch, Procedu
         MachineInstr instr = (MachineInstr) { .instruction = LABEL_OPCODE, .dest = MLBL(buf)};
         array_append(iface.output, instr);
 
-        for (int j = 0; j < block->bytecode.count; j++) {
+        for (size_t j = 0; j < block->bytecode.count; j++) {
             Instr instr = block->bytecode.items[j];
 
             switch (instr.opcode) {
@@ -70,7 +70,7 @@ void compile_program_with(FILE *out, Arena *scratch, CodegenBackend *backend, Pr
     backend->emit_symbols(out, program);
     backend->emit_entry(out, program);
 
-    for (int i = 0; i < program->count; i++) {
+    for (size_t i = 0; i < program->count; i++) {
         fprintf(out, "%s:\n", program->items[i].name);
         MachineCode code = emit_procedure_with(backend, scratch, program->items[i], program->symbols);
         backend->print_machine_code(out, &code);
