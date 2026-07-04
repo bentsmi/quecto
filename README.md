@@ -1,39 +1,70 @@
 # Quecto Programming Language
 
-Quecto is a simple programming language that so far implements basic control-flow procedures like calls, branches and loops.
+Quecto is an in-development programming language. It features a full compiler pipeline:
+tokenization, parsing, analysis, CFG IR emission, IR passes including SSA transformation, and code generation.
 
-Right now, it uses a custom IR based on CFG+SSA which can be emitted into NASM x86-64 assembly.
+For more in-depth information, see [Overview](./OVERVIEW.md).
 
-It is heavily in development and only supports basic programs like those in `./examples`. It currently has limited testing as well, so correctness is not fully verified.
-It supports external libc calls right now which can be seen in `./examples/array.q`. However, it requires the array "AAAA\0" be decayed into a pointer.
+## Requirements
 
-Currently, the result of the program can be seen with the exit code.
+- A C11 compiler (`clang` or `gcc`; MSVC is untested) and `gperf`.
+- Running included examples through `make run-*` requires `nasm` and a platform-specific linker.
 
+## Getting Started
 
-## Overview
+Build the compiler and run a few examples.
 
-See [Overview](./OVERVIEW.md).
+```bash
+  $ make
+  Built main
+  $ make run-array
+  AAAA
+  AAAA
+  AAAA
+  AAAA
+  AAAA
+  19
+  $ make run-proc
+  148
+```
 
-## Contributing
-
-See [Contributing](./CONTRIBUTING.md).
+The `run-*` rule accepts an example name, builds it, links it, runs it, and prints the exit code, which is typically the result of a calculation in the examples.
 
 ## Usage
 
+The binary itself currently only has one command: `build`
+which can be used as such:
+
 ```bash
-  make
-  ./main build examples/proc.q
-  make out
-  ./out
+  ./build/main build examples/array.q
 ```
 
-If your shell or editor does not automatically display the exit code upon process exit, run
+Currently, it is hardcoded to produce `./out.S` but will be more configurable in the future.
+Following the compilation run:
+
 ```bash
-echo $?
+  nasm -f elf64 -o out.o out.S # Linux x86-64
+  ld ... -o out out.o
 ```
 
-## WIP
+To see what linker arguments should be used, refer to the `run-*` rule in the Makefile. Currently, the Makefile supports macOS and Linux.
 
-Most recently, the IR was significantly refactored (i.e. linear bytecode -> CFG). Future work is to now be done on the front end of the language regarding AST parsing, analysis and AST->IR emission
-so that the new backend can be taken advantage of. Of course, the backend is still very much a WIP but it is stronger than before and now implements dominance, phi insertion, etc. for SSA transformation.
-Testing the intermediate representations between stages also needs to be implemented and similar with verifying example program outputs.
+## Smoke Tests
+
+`make smoke` builds the examples in `examples/`. It verifies that expected-success examples compile and expected-failure examples fail.
+
+## Current Status
+
+Implemented:
+  - tokenizer and recursive descent parser
+  - basic analysis and type checking
+  - CFG-based IR
+  - dominance, phi insertion, liveness and register-coloring passes
+  - NASM x86-64 backend
+  - small test suite (small tokenizer test + smoke tests)
+
+Known Limitations:
+  - limited testing beyond tokenizer
+  - limited compiler output options (`out.S` is currently hardcoded)
+  - no register spilling yet (!)
+  - backend is experimental
