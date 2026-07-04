@@ -135,9 +135,19 @@ Operand mem_from_index(EmitContext *context, AST *base) {
     ASTIndex *index = CAST_AST(base, ASTIndex, AST_INDEX);
     Operand head = decay(context, index->head);
     Operand ind = emit_expr(context, index->index);
-    ind = emit_instr(context, OPCODE_EXT_Z, allocate_vreg(context, (VregInfo){.size=8,.sign=false}), ind, NONE);
+
+
+    // TODO: Likely will want to separate move semantics from IR and only care about it when lowering
+    // right now this is conforming to x86-64 semantics on movzx and mov
+    assert(ind.vreg >= 0);
+    if (context->procedure->vregs.items[ind.vreg].size < 4) {
+         ind = emit_instr(context, OPCODE_EXT_Z, allocate_vreg(context, (VregInfo){.size=8,.sign=false}), ind, NONE);
+    } else {
+         ind = emit_instr(context, OPCODE_COPY, allocate_vreg(context, (VregInfo){.size=8,.sign=false}), ind, NONE);
+    }
+
     int size = quecto_type_size(index->base.resolved_qtype);
-    
+
     return MEM(INDEX(head.vreg, ind.vreg, 0, size));
 }
 
