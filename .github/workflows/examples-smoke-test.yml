@@ -1,0 +1,19 @@
+name: Examples Smoke Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: install gperf
+      run: sudo apt-get update && sudo apt-get install -y gperf
+    - name: make smoke
+      env:
+        CC: gcc
+      run: make smoke
