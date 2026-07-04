@@ -105,6 +105,7 @@ AST *parse_statement(ParserState *parser) {
                 break;
             }
         }
+            /* fall through */
         default: {
             AST *expr = parse_expr(parser);
             statement = expr;

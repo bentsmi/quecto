@@ -533,7 +533,7 @@ X64_INSTRUCTION(call) {
     Key global_name = iface->globals->table.keys[instr.arg1.glbl];
     SymbolData *global_data = iface->globals->table.items[instr.arg1.glbl];
     char *name = arena_alloc(iface->scratch, (global_name.size + 8) * sizeof(char));
-    snprintf(name, global_name.size + 8, global_data->externed ? mangled_format : "%.*s", global_name.size, global_name.data);
+    snprintf(name, global_name.size + 8, global_data->externed ? mangled_format : "%.*s", (int)global_name.size, (const char *)global_name.data);
     
     iface->arg_count = 0;
     EMIT(iface->output, X64_CALL, MLBL(name), MINV, MINV);
@@ -602,7 +602,7 @@ void calculate_offsets(CodegenInterface *iface) {
 }
 
 
-CodegenBackend LINUX_X86_64_BACKEND = (CodegenBackend) {
+CodegenBackend LINUX_X86_64_BACKEND = {
   // .adhere_bytecode_to_spec = &adhere_bytecode_to_machine_spec,
   .print_machine_code = &fprint_x64_machine_code,
   .calculate_offsets = &calculate_offsets,

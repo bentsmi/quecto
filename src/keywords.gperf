@@ -3,6 +3,7 @@
 %includes
 %define lookup-function-name lookup_keyword
 %struct-type
+%define initializer-suffix ,0
 %{
 #include "tokenizer.h"
 %}

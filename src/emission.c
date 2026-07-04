@@ -139,7 +139,7 @@ Operand mem_from_index(EmitContext *context, AST *base) {
 
     // TODO: Likely will want to separate move semantics from IR and only care about it when lowering
     // right now this is conforming to x86-64 semantics on movzx and mov
-    assert(ind.vreg >= 0);
+    assert(ind.type == OPERAND_VREG);
     if (context->procedure->vregs.items[ind.vreg].size < 4) {
          ind = emit_instr(context, OPCODE_EXT_Z, allocate_vreg(context, (VregInfo){.size=8,.sign=false}), ind, NONE);
     } else {

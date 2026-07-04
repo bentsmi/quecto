@@ -154,6 +154,7 @@ TokenArray tokenize(Arenas *arena, const char *buf, size_t size) {
                         next++;
                     continue;
                 }
+                /* fall through */
             case '+': case '*': case '-': case '^': case '&': case '{': case '}': case '(': case ')': case '[': case ']':  case ':': case ';': case '.': case ',':
                 tok.type = token_from_char[chr];
                 break;

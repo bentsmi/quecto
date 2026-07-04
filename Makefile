@@ -3,6 +3,7 @@
 
 CC ?= gcc
 CFLAGS ?= -std=c11 -Wall -Wpedantic -Wextra
+NASM ?= nasm
 DBGFLAGS ?= -g -fsanitize=address
 
 SOURCE = $(filter-out src/keywords.c, $(wildcard src/*.c)) src/keywords.c
@@ -55,18 +56,20 @@ DETECTED_OS := $(shell uname -s)
 
 ifeq ($(DETECTED_OS),Darwin)
     NASM_FLAGS := -f macho64
+    LD := ld
     LD_FLAGS := -macos_version_min 14.1 \
     		-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib \
     		-lSystem -arch x86_64 -syslibroot $(shell xcrun --sdk macosx --show-sdk-path)
 else ifeq ($(DETECTED_OS),Linux)
     NASM_FLAGS := -f elf64
-    LD_FLAGS :=
+    LD := $(CC)
+    LD_FLAGS := -nostartfiles -no-pie
 endif
 
 run-%: main examples/%.q
 	$(BUILD_DIR)/main build examples/$*.q
-	nasm $(NASM_FLAGS) -o $*.o out.S
-	ld $(LD_FLAGS) -o $(BUILD_DIR)/$* $*.o
+	$(NASM) $(NASM_FLAGS) -o $*.o out.S
+	$(LD) $(LD_FLAGS) -o $(BUILD_DIR)/$* $*.o
 	rm -f $*.o out.S
 	-@$(BUILD_DIR)/$*; echo $$?;
 
