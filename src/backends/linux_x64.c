@@ -509,13 +509,15 @@ X64_INSTRUCTION(jmpCC) {
 
 
 X64_INSTRUCTION(cmpCC) {
-  EMIT(iface->output, X64_CMP,
+    EMIT(iface->output, X64_CMP,
         MINV,
         MREG(select_register(iface->vregs->items[instr.arg1.vreg])),
         MREG(select_register(iface->vregs->items[instr.arg2.vreg])));
 
-  EMIT(iface->output, setCC_from_ir[instr.opcode],
-        MREG(select_register(iface->vregs->items[instr.dest.vreg])),
+    VregInfo info = iface->vregs->items[instr.dest.vreg];
+    assert(info.color.index < 16);
+    EMIT(iface->output, setCC_from_ir[instr.opcode],
+        MREG(registers[0][info.color.index]), // setCC is only valid on 8-bit registers, dest needs to be zeroed out in the future
         MINV,
         MINV);
 }
