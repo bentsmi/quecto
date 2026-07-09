@@ -294,7 +294,11 @@ Operand emit_call(EmitContext *context, AST *base, bool has_dest) {
 
 Operand emit_ref(EmitContext *context, AST* base) {
     ASTRef *ref = CAST_AST(base, ASTRef, AST_REF);
-    return emit_instr(context, OPCODE_ADDR, allocate_vreg(context, (VregInfo){ .size = 8 }), emit_expr(context, ref->head), NONE);
+    if (ref->head->type == AST_INDEX) { // NOTE: sort of a bandaid fix as in this is not explicit, realistically we now need a well-defined IR/AST intermediary
+        return emit_instr(context, OPCODE_ADDR, allocate_vreg(context, (VregInfo){ .size = 8 }), mem_from_index(context, ref->head), NONE);
+    } else {
+        return emit_instr(context, OPCODE_ADDR, allocate_vreg(context, (VregInfo){ .size = 8 }), emit_expr(context, ref->head), NONE);
+    }
 }
 
 
